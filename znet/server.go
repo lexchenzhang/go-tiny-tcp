@@ -2,7 +2,10 @@ package znet
 
 import (
 	"fmt"
+	"log"
 	"net"
+
+	"github.com/lexchenzhang/go-tiny-tcp/utils"
 )
 
 type IServer interface {
@@ -13,6 +16,7 @@ type IServer interface {
 }
 
 type Server struct {
+	Name      string
 	Port      int
 	IPVersion string
 	IP        string
@@ -57,6 +61,7 @@ func (s *Server) stop() {}
 
 func (s *Server) StartAndServe() {
 	s.start()
+	s.printInfo()
 	select {}
 }
 
@@ -64,11 +69,16 @@ func (s *Server) AddRouter(router IRouter) {
 	s.Router = router
 }
 
-func NewServer(name string) IServer {
+func NewServer() IServer {
 	return &Server{
-		Port:      8888,
+		Name:      utils.GlobalObject.Name,
+		Port:      utils.GlobalObject.TcpProt,
 		IPVersion: "tcp4",
-		IP:        "127.0.0.1",
+		IP:        utils.GlobalObject.Host,
 		Router:    nil,
 	}
+}
+
+func (s *Server) printInfo() {
+	log.Println("Server ", s.Name, " is running on ", s.IP, ":", s.Port)
 }

@@ -3,6 +3,8 @@ package znet
 import (
 	"fmt"
 	"net"
+
+	"github.com/lexchenzhang/go-tiny-tcp/utils"
 )
 
 type IConnection interface {
@@ -65,7 +67,7 @@ func (c *Connection) StartReader() {
 	fmt.Println("Reader Goroutine is running...")
 	defer c.Stop()
 	for {
-		buf := make([]byte, 1024)
+		buf := make([]byte, utils.GlobalObject.MaxPackageSize)
 		_, err := c.conn.Read(buf)
 		if err != nil {
 			fmt.Println("connID = ", c.connID, " Reader is exit, remote addr is ", c.RemoteAddr().String(), " err is ", err)
