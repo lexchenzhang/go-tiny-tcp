@@ -63,14 +63,13 @@ func (c *Connection) Send(data []byte) error {
 }
 func (c *Connection) StartReader() {
 	fmt.Println("Reader Goroutine is running...")
-	defer fmt.Println("connID = ", c.connID, " Reader is exit, remote addr is ", c.RemoteAddr().String())
 	defer c.Stop()
 	for {
 		buf := make([]byte, 1024)
 		_, err := c.conn.Read(buf)
 		if err != nil {
 			fmt.Println("connID = ", c.connID, " Reader is exit, remote addr is ", c.RemoteAddr().String(), " err is ", err)
-			continue
+			return
 		}
 
 		req := NewRequest(c, buf)
