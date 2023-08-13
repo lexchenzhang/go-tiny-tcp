@@ -3,17 +3,18 @@ package znet
 type IRequest interface {
 	GetConn() IConnection
 	GetData() []byte
+	GetMsgID() uint32
 }
 
 type Request struct {
 	conn IConnection
-	data []byte
+	msg  IMessage
 }
 
-func NewRequest(conn IConnection, data []byte) *Request {
+func NewRequest(conn IConnection, msg IMessage) *Request {
 	return &Request{
 		conn: conn,
-		data: data,
+		msg:  msg,
 	}
 }
 
@@ -22,5 +23,9 @@ func (r *Request) GetConn() IConnection {
 }
 
 func (r *Request) GetData() []byte {
-	return r.data
+	return r.msg.GetData()
+}
+
+func (r *Request) GetMsgID() uint32 {
+	return r.msg.GetID()
 }

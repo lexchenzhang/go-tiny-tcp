@@ -1,10 +1,10 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
-
-	"github.com/lexchenzhang/go-tiny-tcp/utils"
 )
 
 type IConnection interface {
@@ -13,7 +13,7 @@ type IConnection interface {
 	GetTCPConn() *net.TCPConn
 	GetConnID() uint32
 	RemoteAddr() net.Addr
-	Send(data []byte) error
+	SendMsg(msgID uint32, data []byte) error
 }
 
 type HandleFunc func(*net.TCPConn, []byte, int) error
@@ -43,6 +43,7 @@ func (c *Connection) Start() {
 	go c.StartReader()
 	go c.StartWriter()
 }
+
 func (c *Connection) Stop() {
 	if c.isClose {
 		return
@@ -51,36 +52,75 @@ func (c *Connection) Stop() {
 	c.conn.Close()
 	close(c.exitChan)
 }
+
 func (c *Connection) GetTCPConn() *net.TCPConn {
 	return c.conn
 }
+
 func (c *Connection) GetConnID() uint32 {
 	return c.connID
 }
+
 func (c *Connection) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
-func (c *Connection) Send(data []byte) error {
+
+func (c *Connection) SendMsg(msgID uint32, data []byte) error {
+	if c.isClose {
+		return errors.New("connection closed")
+	}
+	dp := NewDataPack()
+
+	binaryMsg, err := dp.Pack(NewMessage(msgID, data))
+	if err != nil {
+		fmt.Println("pack error, msg id = ", msgID)
+		return errors.New("pack msg error")
+	}
+
+	if _, err := c.conn.Write(binaryMsg); err != nil {
+		fmt.Println("send msg error, msg id = ", msgID)
+		return errors.New("send msg error")
+	}
 	return nil
 }
+
 func (c *Connection) StartReader() {
 	fmt.Println("Reader Goroutine is running...")
 	defer c.Stop()
 	for {
-		buf := make([]byte, utils.GlobalObject.MaxPackageSize)
-		_, err := c.conn.Read(buf)
+		dp := NewDataPack()
+		buf := make([]byte, dp.GetHeadLen())
+		_, err := io.ReadFull(c.conn, buf)
 		if err != nil {
-			fmt.Println("connID = ", c.connID, " Reader is exit, remote addr is ", c.RemoteAddr().String(), " err is ", err)
-			return
+			fmt.Println("read from conn failed, err:", err)
+			break
 		}
+		msgHeader, err := dp.Unpack(buf)
+		if err != nil {
+			fmt.Println("unpack data failed, err:", err)
+			break
+		}
+		if msgHeader.GetDataLen() > 0 {
+			// read content of pack data
+			msg := msgHeader.(*Message)
+			msg.Data = make([]byte, msg.GetDataLen())
+			_, err := io.ReadFull(c.conn, msg.Data)
+			if err != nil {
+				fmt.Println("server unpack data err", err)
+				return
+			}
 
-		req := NewRequest(c, buf)
+			fmt.Println("->Recv MsgID[", msg.GetID(), "] Len[", msg.GetDataLen(), "] Data[", string(msg.GetData()), "]")
 
-		go func(request IRequest) {
-			c.router.PreHandleFunc(request)
-			c.router.HandleFunc(request)
-			c.router.PostHandleFunc(request)
-		}(req)
+			req := NewRequest(c, msg)
+
+			go func(request IRequest) {
+				c.router.PreHandleFunc(request)
+				c.router.HandleFunc(request)
+				c.router.PostHandleFunc(request)
+			}(req)
+		}
 	}
 }
+
 func (c *Connection) StartWriter() {}

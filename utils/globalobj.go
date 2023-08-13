@@ -31,7 +31,7 @@ func init() {
 func (g *GlobalObj) Reload() {
 	data, err := os.ReadFile("conf/conf.json")
 	if err != nil {
-		panic(err)
+		return
 	}
 	err = json.Unmarshal(data, &GlobalObject)
 	if err != nil {

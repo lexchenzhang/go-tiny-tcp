@@ -16,3 +16,6 @@
 
 # Local tests
 local/
+
+# Mac
+.DS_Store
