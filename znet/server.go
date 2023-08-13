@@ -33,7 +33,8 @@ func (s *Server) start() {
 			panic(err)
 		}
 
-		cid := 0
+		var cid uint32
+		cid = 0
 
 		//3 handle conn
 		for {
