@@ -17,20 +17,20 @@ type IConnection interface {
 type HandleFunc func(*net.TCPConn, []byte, int) error
 
 type Connection struct {
-	conn       *net.TCPConn
-	connID     uint32
-	isClose    bool
-	handleFunc HandleFunc
-	exitChan   chan bool
+	conn     *net.TCPConn
+	connID   uint32
+	isClose  bool
+	exitChan chan bool
+	router   IRouter
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, handleFunc HandleFunc) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, router IRouter) *Connection {
 	return &Connection{
-		conn:       conn,
-		connID:     connID,
-		isClose:    false,
-		handleFunc: handleFunc,
-		exitChan:   make(chan bool, 1),
+		conn:     conn,
+		connID:   connID,
+		router:   router,
+		isClose:  false,
+		exitChan: make(chan bool, 1),
 	}
 }
 
@@ -67,16 +67,19 @@ func (c *Connection) StartReader() {
 	defer c.Stop()
 	for {
 		buf := make([]byte, 1024)
-		n, err := c.conn.Read(buf)
+		_, err := c.conn.Read(buf)
 		if err != nil {
 			fmt.Println("connID = ", c.connID, " Reader is exit, remote addr is ", c.RemoteAddr().String(), " err is ", err)
 			continue
 		}
-		fmt.Println("connID = ", c.connID, " recv data is ", string(buf[:n]))
-		if err := c.handleFunc(c.conn, buf[:n], n); err != nil {
-			fmt.Println("connID = ", c.connID, " Reader is exit, remote addr is ", c.RemoteAddr().String(), " err is ", err)
-			break
-		}
+
+		req := NewRequest(c, buf)
+
+		go func(request IRequest) {
+			c.router.PreHandleFunc(request)
+			c.router.HandleFunc(request)
+			c.router.PostHandleFunc(request)
+		}(req)
 	}
 }
 func (c *Connection) StartWriter() {}
