@@ -13,6 +13,7 @@ type IServer interface {
 	stop()
 	StartAndServe()
 	AddRouter(msgID uint32, router IRouter)
+	GetConnMgr() IConnManager
 }
 
 type Server struct {
@@ -21,6 +22,7 @@ type Server struct {
 	IPVersion  string
 	IP         string
 	MsgHandler IMsgHandler
+	ConnMgr    IConnManager
 }
 
 func (s *Server) start() {
@@ -49,16 +51,29 @@ func (s *Server) start() {
 				fmt.Println("accept tcp err: ", err)
 				continue
 			}
+
+			//TODO::inform client can't accept more connections
+			if s.ConnMgr.Len() >= utils.GlobalObject.MaxConn {
+				conn.Close()
+				fmt.Println("too many connections, close conn: ", conn.RemoteAddr())
+				continue
+			} else {
+				fmt.Println("max conn allowed is ", utils.GlobalObject.MaxConn)
+			}
+
 			fmt.Println("accept tcp conn: ", conn.RemoteAddr())
 
-			dealConn := NewConnection(conn, cid, s.MsgHandler)
+			dealConn := NewConnection(s, conn, cid, s.MsgHandler)
 			go dealConn.Start()
 			cid++
 		}
 	}()
 }
 
-func (s *Server) stop() {}
+func (s *Server) stop() {
+	fmt.Println("[Server Stoped]")
+	s.ConnMgr.ClearConn()
+}
 
 func (s *Server) StartAndServe() {
 	s.start()
@@ -70,6 +85,10 @@ func (s *Server) AddRouter(msgID uint32, router IRouter) {
 	s.MsgHandler.AddRouter(msgID, router)
 }
 
+func (s *Server) GetConnMgr() IConnManager {
+	return s.ConnMgr
+}
+
 func NewServer() IServer {
 	return &Server{
 		Name:       utils.GlobalObject.Name,
@@ -77,6 +96,7 @@ func NewServer() IServer {
 		IPVersion:  "tcp4",
 		IP:         utils.GlobalObject.Host,
 		MsgHandler: NewMsgHandler(),
+		ConnMgr:    NewConnManager(),
 	}
 }
 

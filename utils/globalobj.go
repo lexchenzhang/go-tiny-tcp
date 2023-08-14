@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -35,6 +36,7 @@ func init() {
 func (g *GlobalObj) Reload() {
 	data, err := os.ReadFile("conf/conf.json")
 	if err != nil {
+		fmt.Println("not loading conf.json")
 		return
 	}
 	err = json.Unmarshal(data, &GlobalObject)

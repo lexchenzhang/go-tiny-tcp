@@ -21,6 +21,7 @@ type IConnection interface {
 type HandleFunc func(*net.TCPConn, []byte, int) error
 
 type Connection struct {
+	server     IServer
 	conn       *net.TCPConn
 	connID     uint32
 	isClose    bool
@@ -29,8 +30,9 @@ type Connection struct {
 	msgChan    chan []byte
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, msgHandler IMsgHandler) *Connection {
-	return &Connection{
+func NewConnection(server IServer, conn *net.TCPConn, connID uint32, msgHandler IMsgHandler) *Connection {
+	c := &Connection{
+		server:     server,
 		conn:       conn,
 		connID:     connID,
 		msgHandler: msgHandler,
@@ -38,6 +40,8 @@ func NewConnection(conn *net.TCPConn, connID uint32, msgHandler IMsgHandler) *Co
 		exitChan:   make(chan bool, 1),
 		msgChan:    make(chan []byte),
 	}
+	c.server.GetConnMgr().Add(c)
+	return c
 }
 
 func (c *Connection) Start() {
@@ -55,8 +59,10 @@ func (c *Connection) Stop() {
 	c.isClose = true
 	c.conn.Close()
 	c.exitChan <- true
+	c.server.GetConnMgr().Remove(c)
 	close(c.exitChan)
 	close(c.msgChan)
+	fmt.Println("drop connection:", c.connID)
 }
 
 func (c *Connection) GetTCPConn() *net.TCPConn {
