@@ -24,6 +24,7 @@ type Connection struct {
 	isClose    bool
 	exitChan   chan bool
 	msgHandler IMsgHandler
+	msgChan    chan []byte
 }
 
 func NewConnection(conn *net.TCPConn, connID uint32, msgHandler IMsgHandler) *Connection {
@@ -33,6 +34,7 @@ func NewConnection(conn *net.TCPConn, connID uint32, msgHandler IMsgHandler) *Co
 		msgHandler: msgHandler,
 		isClose:    false,
 		exitChan:   make(chan bool, 1),
+		msgChan:    make(chan []byte),
 	}
 }
 
@@ -50,7 +52,9 @@ func (c *Connection) Stop() {
 	}
 	c.isClose = true
 	c.conn.Close()
+	c.exitChan <- true
 	close(c.exitChan)
+	close(c.msgChan)
 }
 
 func (c *Connection) GetTCPConn() *net.TCPConn {
@@ -77,15 +81,14 @@ func (c *Connection) SendMsg(msgID uint32, data []byte) error {
 		return errors.New("pack msg error")
 	}
 
-	if _, err := c.conn.Write(binaryMsg); err != nil {
-		fmt.Println("send msg error, msg id = ", msgID)
-		return errors.New("send msg error")
-	}
+	c.msgChan <- binaryMsg
+
 	return nil
 }
 
 func (c *Connection) StartReader() {
-	fmt.Println("Reader Goroutine is running...")
+	fmt.Println("[Reader Goroutine is running]")
+	defer fmt.Println("[Reader Goroutine is exited]")
 	defer c.Stop()
 	for {
 		dp := NewDataPack()
@@ -119,4 +122,18 @@ func (c *Connection) StartReader() {
 	}
 }
 
-func (c *Connection) StartWriter() {}
+func (c *Connection) StartWriter() {
+	fmt.Println("[Writer Goroutine is running]")
+	defer fmt.Println(c.RemoteAddr().String(), " [Writer Goroutine is exited]")
+	for {
+		select {
+		case msg := <-c.msgChan:
+			if _, err := c.conn.Write(msg); err != nil {
+				fmt.Println("write to conn failed, err:", err)
+				return
+			}
+		case <-c.exitChan:
+			return
+		}
+	}
+}
