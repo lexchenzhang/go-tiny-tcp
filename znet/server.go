@@ -12,15 +12,15 @@ type IServer interface {
 	start()
 	stop()
 	StartAndServe()
-	AddRouter(router IRouter)
+	AddRouter(msgID uint32, router IRouter)
 }
 
 type Server struct {
-	Name      string
-	Port      int
-	IPVersion string
-	IP        string
-	Router    IRouter
+	Name       string
+	Port       int
+	IPVersion  string
+	IP         string
+	MsgHandler IMsgHandler
 }
 
 func (s *Server) start() {
@@ -50,7 +50,7 @@ func (s *Server) start() {
 			}
 			fmt.Println("accept tcp conn: ", conn.RemoteAddr())
 
-			dealConn := NewConnection(conn, cid, s.Router)
+			dealConn := NewConnection(conn, cid, s.MsgHandler)
 			go dealConn.Start()
 			cid++
 		}
@@ -65,17 +65,17 @@ func (s *Server) StartAndServe() {
 	select {}
 }
 
-func (s *Server) AddRouter(router IRouter) {
-	s.Router = router
+func (s *Server) AddRouter(msgID uint32, router IRouter) {
+	s.MsgHandler.AddRouter(msgID, router)
 }
 
 func NewServer() IServer {
 	return &Server{
-		Name:      utils.GlobalObject.Name,
-		Port:      utils.GlobalObject.TcpProt,
-		IPVersion: "tcp4",
-		IP:        utils.GlobalObject.Host,
-		Router:    nil,
+		Name:       utils.GlobalObject.Name,
+		Port:       utils.GlobalObject.TcpProt,
+		IPVersion:  "tcp4",
+		IP:         utils.GlobalObject.Host,
+		MsgHandler: NewMsgHandler(),
 	}
 }
 
