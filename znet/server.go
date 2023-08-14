@@ -14,15 +14,21 @@ type IServer interface {
 	StartAndServe()
 	AddRouter(msgID uint32, router IRouter)
 	GetConnMgr() IConnManager
+	SetOnConnStart(f func(conn IConnection))
+	SetOnConnStop(f func(conn IConnection))
+	CallOnConnStart(conn IConnection)
+	CallOnConnStop(conn IConnection)
 }
 
 type Server struct {
-	Name       string
-	Port       int
-	IPVersion  string
-	IP         string
-	MsgHandler IMsgHandler
-	ConnMgr    IConnManager
+	Name        string
+	Port        int
+	IPVersion   string
+	IP          string
+	MsgHandler  IMsgHandler
+	ConnMgr     IConnManager
+	OnConnStart func(conn IConnection)
+	OnConnStop  func(conn IConnection)
 }
 
 func (s *Server) start() {
@@ -102,4 +108,24 @@ func NewServer() IServer {
 
 func (s *Server) printInfo() {
 	log.Println("Server ", s.Name, " is running on ", s.IP, ":", s.Port)
+}
+
+func (s *Server) SetOnConnStart(f func(IConnection)) {
+	s.OnConnStart = f
+}
+
+func (s *Server) SetOnConnStop(f func(IConnection)) {
+	s.OnConnStop = f
+}
+
+func (s *Server) CallOnConnStart(conn IConnection) {
+	if s.OnConnStart != nil {
+		s.OnConnStart(conn)
+	}
+}
+
+func (s *Server) CallOnConnStop(conn IConnection) {
+	if s.OnConnStop != nil {
+		s.OnConnStop(conn)
+	}
 }

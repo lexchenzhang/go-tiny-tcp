@@ -50,6 +50,7 @@ func (c *Connection) Start() {
 	}
 	go c.StartReader()
 	go c.StartWriter()
+	c.server.CallOnConnStart(c)
 }
 
 func (c *Connection) Stop() {
@@ -57,6 +58,7 @@ func (c *Connection) Stop() {
 		return
 	}
 	c.isClose = true
+	c.server.CallOnConnStop(c)
 	c.conn.Close()
 	c.exitChan <- true
 	c.server.GetConnMgr().Remove(c)
