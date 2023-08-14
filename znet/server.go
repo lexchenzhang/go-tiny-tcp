@@ -25,6 +25,7 @@ type Server struct {
 
 func (s *Server) start() {
 	go func() {
+		s.MsgHandler.StartWorkerPool()
 		//1 gain TCP addr
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {

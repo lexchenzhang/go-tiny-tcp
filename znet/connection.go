@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+
+	"github.com/lexchenzhang/go-tiny-tcp/utils"
 )
 
 type IConnection interface {
@@ -117,7 +119,12 @@ func (c *Connection) StartReader() {
 
 			req := NewRequest(c, msg)
 
-			go c.msgHandler.DoMsgHandler(req)
+			if utils.GlobalObject.WorkerPoolSize > 0 {
+				c.msgHandler.SendRequestToTaskQueue(req)
+			} else {
+				go c.msgHandler.DoMsgHandler(req)
+			}
+
 		}
 	}
 }
