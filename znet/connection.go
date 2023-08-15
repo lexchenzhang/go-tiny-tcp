@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/lexchenzhang/go-tiny-tcp/utils"
 )
@@ -16,18 +17,23 @@ type IConnection interface {
 	GetConnID() uint32
 	RemoteAddr() net.Addr
 	SendMsg(msgID uint32, data []byte) error
+	SetProperty(key string, value interface{})
+	GetProperty(key string) (interface{}, error)
+	RemoveProperty(key string)
 }
 
 type HandleFunc func(*net.TCPConn, []byte, int) error
 
 type Connection struct {
-	server     IServer
-	conn       *net.TCPConn
-	connID     uint32
-	isClose    bool
-	exitChan   chan bool
-	msgHandler IMsgHandler
-	msgChan    chan []byte
+	server       IServer
+	conn         *net.TCPConn
+	connID       uint32
+	isClose      bool
+	exitChan     chan bool
+	msgHandler   IMsgHandler
+	msgChan      chan []byte
+	property     map[string]interface{}
+	propertyLock sync.RWMutex
 }
 
 func NewConnection(server IServer, conn *net.TCPConn, connID uint32, msgHandler IMsgHandler) *Connection {
@@ -39,6 +45,7 @@ func NewConnection(server IServer, conn *net.TCPConn, connID uint32, msgHandler 
 		isClose:    false,
 		exitChan:   make(chan bool, 1),
 		msgChan:    make(chan []byte),
+		property:   map[string]interface{}{},
 	}
 	c.server.GetConnMgr().Add(c)
 	return c
@@ -151,4 +158,25 @@ func (c *Connection) StartWriter() {
 			return
 		}
 	}
+}
+
+func (c *Connection) SetProperty(key string, value interface{}) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+	c.property[key] = value
+}
+
+func (c *Connection) GetProperty(key string) (interface{}, error) {
+	c.propertyLock.RLock()
+	defer c.propertyLock.RUnlock()
+	if v, ok := c.property[key]; ok {
+		return v, nil
+	}
+	return nil, errors.New("property not found")
+}
+
+func (c *Connection) RemoveProperty(key string) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+	delete(c.property, key)
 }
