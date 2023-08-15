@@ -30,17 +30,18 @@ func (dp *DataPack) GetHeadLen() uint32 {
 func (dp *DataPack) Pack(msg IMessage) ([]byte, error) {
 	dataBuff := bytes.NewBuffer([]byte{})
 
-	// write dataLen
-	if err := binary.Write(dataBuff, binary.LittleEndian, msg.GetDataLen()); err != nil {
+	// write MsgID
+	if err := binary.Write(dataBuff, binary.BigEndian, msg.GetID()); err != nil {
 		return nil, err
 	}
-	// write MsgID
-	if err := binary.Write(dataBuff, binary.LittleEndian, msg.GetID()); err != nil {
+
+	// write dataLen
+	if err := binary.Write(dataBuff, binary.BigEndian, msg.GetDataLen()); err != nil {
 		return nil, err
 	}
 
 	// write Data
-	if err := binary.Write(dataBuff, binary.LittleEndian, msg.GetData()); err != nil {
+	if err := binary.Write(dataBuff, binary.BigEndian, msg.GetData()); err != nil {
 		return nil, err
 	}
 
@@ -51,13 +52,13 @@ func (dp *DataPack) Unpack(b []byte) (IMessage, error) {
 	dataBuff := bytes.NewReader(b)
 	msg := &Message{}
 
-	// read dataLen
-	if err := binary.Read(dataBuff, binary.LittleEndian, &msg.DataLen); err != nil {
+	// read MsgID
+	if err := binary.Read(dataBuff, binary.BigEndian, &msg.ID); err != nil {
 		return nil, err
 	}
 
-	// read MsgID
-	if err := binary.Read(dataBuff, binary.LittleEndian, &msg.ID); err != nil {
+	// read dataLen
+	if err := binary.Read(dataBuff, binary.BigEndian, &msg.DataLen); err != nil {
 		return nil, err
 	}
 
