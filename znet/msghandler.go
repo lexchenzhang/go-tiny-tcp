@@ -39,7 +39,9 @@ func (mh *MsgHandler) AddRouter(msgId uint32, router IRouter) {
 }
 
 func (mh *MsgHandler) DoMsgHandler(req IRequest) {
-	if router, ok := mh.routers[req.GetMsgID()]; ok {
+	if router, ok := mh.routers[req.GetMsgID()]; !ok {
+		fmt.Println("msg handler not found with msgID=", req.GetMsgID())
+	} else {
 		router.PreHandleFunc(req)
 		router.HandleFunc(req)
 		router.PostHandleFunc(req)
